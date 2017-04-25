@@ -59,6 +59,11 @@ class Box
     protected $fontFace = null;
 
     /**
+     * @var int
+     */
+    protected $spacing = 0;
+
+    /**
      * @var bool
      */
     protected $debug = false;
@@ -104,6 +109,14 @@ class Box
     public function setFontFace($path)
     {
         $this->fontFace = $path;
+    }
+    
+    /**
+     * @param int $spacing Letter space in *pixels*
+     */
+    public function setSpacing($spacing)
+    {
+        $this->spacing = $spacing;
     }
 
     /**
@@ -396,15 +409,32 @@ class Box
 
     protected function drawInternal($x, $y, Color $color, $text)
     {
-        imagefttext(
-            $this->im,
-            $this->getFontSizeInPoints(),
-            0, // no rotation
-            $x,
-            $y,
-            $color->getIndex($this->im),
-            $this->fontFace,
-            $text
-        );
+        if ($this->spacing > 0) {
+            $shiftX = $x;
+            for ($i = 0; $i < strlen($text); $i++) {
+                $charBox = imagefttext(
+                    $this->im,
+                    $this->getFontSizeInPoints(),
+                    0, // no rotation
+                    $shiftX,
+                    $y,
+                    $color->getIndex($this->im),
+                    $this->fontFace,
+                    $text[$i]
+                );
+                $shiftX += $this->spacing + ($charBox[2] - $charBox[0]);
+            }
+        } else {
+          imagefttext(
+              $this->im,
+              $this->getFontSizeInPoints(),
+              0, // no rotation
+              $x,
+              $y,
+              $color->getIndex($this->im),
+              $this->fontFace,
+              $text
+          );
+        }
     }
 }

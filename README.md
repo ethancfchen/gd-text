@@ -38,6 +38,7 @@ $box->setFontColor(new Color(148, 212, 1));
 $box->setTextShadow(new Color(0, 0, 0, 50), 0, -2);
 $box->setBox(20, 20, 460, 460);
 $box->setTextAlign('right', 'bottom');
+$box->setSpacing(50);
 $box->draw("Prisma");
 
 header("Content-type: image/png");

@@ -1,6 +1,9 @@
 <?php
 namespace GDText;
 
+use GDText\Struct\Point;
+use GDText\Struct\Rectangle;
+
 class Box
 {
     /**
@@ -79,20 +82,16 @@ class Box
     protected $backgroundColor = false;
 
     /**
-     * @var array
+     * @var Rectangle
      */
-    protected $box = array(
-        'x' => 0,
-        'y' => 0,
-        'width' => 100,
-        'height' => 100
-    );
+    protected $box;
 
     public function __construct(&$image)
     {
         $this->im = $image;
         $this->fontColor = new Color(0, 0, 0);
         $this->strokeColor = new Color(0, 0, 0);
+        $this->box = new Rectangle(0, 0, 100, 100);
     }
 
     /**
@@ -152,8 +151,7 @@ class Box
     {
         $this->textShadow = array(
             'color' => $color,
-            'x' => $xShift,
-            'y' => $yShift
+            'offset' => new Point($xShift, $yShift)
         );
     }
 
@@ -213,10 +211,7 @@ class Box
      */
     public function setBox($x, $y, $width, $height)
     {
-        $this->box['x'] = $x;
-        $this->box['y'] = $y;
-        $this->box['width'] = $width;
-        $this->box['height'] = $height;
+        $this->box = new Rectangle($x, $y, $width, $height);
     }
 
     /**
@@ -258,10 +253,7 @@ class Box
         if ($this->debug) {
             // Marks whole texbox area with color
             $this->drawFilledRectangle(
-                $this->box['x'],
-                $this->box['y'],
-                $this->box['width'],
-                $this->box['height'],
+                $this->box,
                 new Color(rand(180, 255), rand(180, 255), rand(180, 255), 80)
             );
         }
@@ -271,10 +263,10 @@ class Box
 
         switch ($this->alignY) {
             case VerticalAlignment::Center:
-                $yAlign = ($this->box['height'] / 2) - ($textHeight / 2);
+                $yAlign = ($this->box->getHeight() / 2) - ($textHeight / 2);
                 break;
             case VerticalAlignment::Bottom:
-                $yAlign = $this->box['height'] - $textHeight;
+                $yAlign = $this->box->getHeight() - $textHeight;
                 break;
             case VerticalAlignment::Top:
             default:
@@ -284,13 +276,12 @@ class Box
         $n = 0;
         foreach ($lines as $line) {
             $box = $this->calculateBox($line);
-            $boxWidth = $box[2] - $box[0];
             switch ($this->alignX) {
                 case HorizontalAlignment::Center:
-                    $xAlign = ($this->box['width'] - $boxWidth) / 2;
+                    $xAlign = ($this->box->getWidth() - $box->getWidth()) / 2;
                     break;
                 case HorizontalAlignment::Right:
-                    $xAlign = ($this->box['width'] - $boxWidth);
+                    $xAlign = ($this->box->getWidth() - $box->getWidth());
                     break;
                 case HorizontalAlignment::Left:
                 default:
@@ -299,18 +290,20 @@ class Box
             $yShift = $lineHeightPx * (1 - $this->baseline);
 
             // current line X and Y position
-            $xMOD = $this->box['x'] + $xAlign;
-            $yMOD = $this->box['y'] + $yAlign + $yShift + ($n * $lineHeightPx);
+            $xMOD = $this->box->getX() + $xAlign;
+            $yMOD = $this->box->getY() + $yAlign + $yShift + ($n * $lineHeightPx);
 
             if ($line && $this->backgroundColor) {
                 // Marks whole texbox area with given background-color
                 $backgroundHeight = $this->fontSize;
 
                 $this->drawFilledRectangle(
-                    $xMOD,
-                    $this->box['y'] + $yAlign + ($n * $lineHeightPx) + ($lineHeightPx - $backgroundHeight) + (1 - $this->lineHeight) * 13 * (1 / 50 * $this->fontSize),
-                    $boxWidth,
-                    $backgroundHeight,
+                    new Rectangle(
+                        $xMOD,
+                        $this->box->getY() + $yAlign + ($n * $lineHeightPx) + ($lineHeightPx - $backgroundHeight) + (1 - $this->lineHeight) * 13 * (1 / 50 * $this->fontSize),
+                        $box->getWidth(),
+                        $backgroundHeight
+                    ),
                     $this->backgroundColor
                 );
             }
@@ -318,28 +311,33 @@ class Box
             if ($this->debug) {
                 // Marks current line with color
                 $this->drawFilledRectangle(
-                    $xMOD,
-                    $this->box['y'] + $yAlign + ($n * $lineHeightPx),
-                    $boxWidth,
-                    $lineHeightPx,
+                    new Rectangle(
+                        $xMOD,
+                        $this->box->getY() + $yAlign + ($n * $lineHeightPx),
+                        $box->getWidth(),
+                        $lineHeightPx
+                    ),
                     new Color(rand(1, 180), rand(1, 180), rand(1, 180))
                 );
             }
 
             if ($this->textShadow !== false) {
                 $this->drawInternal(
-                    $xMOD + $this->textShadow['x'],
-                    $yMOD + $this->textShadow['y'],
+                    new Point(
+                        $xMOD + $this->textShadow['offset']->getX(),
+                        $yMOD + $this->textShadow['offset']->getY()
+                    ),
                     $this->textShadow['color'],
                     $line
                 );
-                
             }
 
             $this->strokeText($xMOD, $yMOD, $line);
             $this->drawInternal(
-                $xMOD,
-                $yMOD,
+                new Point(
+                    $xMOD,
+                    $yMOD
+                ),
                 $this->fontColor,
                 $line
             );
@@ -364,7 +362,7 @@ class Box
             $line = $words[0];
             for ($i = 1; $i < count($words); $i++) {
                 $box = $this->calculateBox($line." ".$words[$i]);
-                if (($box[4]-$box[6]) >= $this->box['width']) {
+                if ($box->getWidth() >= $this->box->getWidth()) {
                     $lines[] = $line;
                     $line = $words[$i];
                 } else {
@@ -384,16 +382,38 @@ class Box
         return 0.75 * $this->fontSize;
     }
 
-    protected function drawFilledRectangle($x, $y, $width, $height, Color $color)
+    protected function drawFilledRectangle(Rectangle $rect, Color $color)
     {
-        imagefilledrectangle($this->im, $x, $y, $x + $width, $y + $height,
+        imagefilledrectangle(
+            $this->im,
+            $rect->getLeft(),
+            $rect->getTop(),
+            $rect->getRight(),
+            $rect->getBottom(),
             $color->getIndex($this->im)
         );
     }
 
+    /**
+     * Returns the bounding box of a text.
+     * @param string $text
+     * @return Rectangle
+     */
     protected function calculateBox($text)
     {
-        return imageftbbox($this->getFontSizeInPoints(), 0, $this->fontFace, $text);
+        $bounds = imagettfbbox($this->getFontSizeInPoints(), 0, $this->fontFace, $text);
+
+        $xLeft  = $bounds[0]; // (lower|upper) left corner, X position
+        $xRight = $bounds[2]; // (lower|upper) right corner, X position
+        $yLower = $bounds[1]; // lower (left|right) corner, Y position
+        $yUpper = $bounds[5]; // upper (left|right) corner, Y position
+
+        return new Rectangle(
+            $xLeft,
+            $yUpper,
+            $xRight - $xLeft,
+            $yLower - $yUpper
+        );
     }
 
     protected function strokeText($x, $y, $text)
@@ -402,39 +422,39 @@ class Box
         if ($size <= 0) return;
         for ($c1 = $x - $size; $c1 <= $x + $size; $c1++) {
             for ($c2 = $y - $size; $c2 <= $y + $size; $c2++) {
-                $this->drawInternal($c1, $c2, $this->strokeColor, $text);
+                $this->drawInternal(new Point($c1, $c2), $this->strokeColor, $text);
             }
         }
     }
 
-    protected function drawInternal($x, $y, Color $color, $text)
+    protected function drawInternal(Point $position, Color $color, $text)
     {
         if ($this->spacing > 0) {
-            $shiftX = $x;
+            $shiftX = $position->getX();
             for ($i = 0; $i < strlen($text); $i++) {
                 $charBox = imagefttext(
-                    $this->im,
-                    $this->getFontSizeInPoints(),
-                    0, // no rotation
-                    $shiftX,
-                    $y,
-                    $color->getIndex($this->im),
-                    $this->fontFace,
-                    $text[$i]
+                      $this->im,
+                      $this->getFontSizeInPoints(),
+                      0, // no rotation
+                      $shiftX,
+                      $position->getY(),
+                      $color->getIndex($this->im),
+                      $this->fontFace,
+                      $text[$i]
                 );
                 $shiftX += $this->spacing + ($charBox[2] - $charBox[0]);
             }
         } else {
-          imagefttext(
-              $this->im,
-              $this->getFontSizeInPoints(),
-              0, // no rotation
-              $x,
-              $y,
-              $color->getIndex($this->im),
-              $this->fontFace,
-              $text
-          );
+            imagefttext(
+                $this->im,
+                $this->getFontSizeInPoints(),
+                0, // no rotation
+                $position->getX(),
+                $position->getY(),
+                $color->getIndex($this->im),
+                $this->fontFace,
+                $text
+            );
         }
     }
 }

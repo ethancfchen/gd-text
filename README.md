@@ -1,7 +1,13 @@
 gd-text
 =======
 
-###Basic usage example
+### Installation via Composer:
+
+```bash
+composer require stil/gd-text
+```
+
+### Basic usage example
 ```php
 <?php
 require __DIR__.'/../vendor/autoload.php';
